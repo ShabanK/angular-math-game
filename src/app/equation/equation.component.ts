@@ -1,14 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import {FormGroup, FormControl, Validators, AbstractControl, MaxLengthValidator} from "@angular/forms"
 import { CustomValidators } from "../custom-validators"
-import { delay } from "rxjs/operators"
+import { delay,filter, scan } from "rxjs/operators"
 @Component({
   selector: 'app-equation',
   templateUrl: './equation.component.html',
   styleUrls: ['./equation.component.css']
 })
 export class EquationComponent implements OnInit {
-
+  secondsPerSolution:number=0;
   mathForm = new FormGroup({
     a: new FormControl(this.generateRandomNumber()),
     b: new FormControl(this.generateRandomNumber()),
@@ -31,20 +31,27 @@ export class EquationComponent implements OnInit {
 
   ngOnInit() {
     this.mathForm.statusChanges
-    .pipe(delay(300))
-    .subscribe((value)=>{
-      if(value==="INVALID"){
-        return;
-      } else {
-        this.mathForm.patchValue({
-          a:this.generateRandomNumber(),
-          b:this.generateRandomNumber(),
-          answer: ""
-        })
-        // this.mathForm.controls.a.setValue(this.generateRandomNumber())
-        // this.mathForm.controls.b.setValue(this.generateRandomNumber())
-        // this.mathForm.controls.answer.setValue("")
-      }
+    .pipe(
+        filter(value=>value==="VALID"),
+        delay(300),
+        scan((acc)=>{
+          return {
+            numberSolved: acc.numberSolved + 1,
+            startTime: acc.startTime
+          }
+        },{numberSolved:0, startTime: new Date()})
+      )
+    .subscribe(({numberSolved, startTime})=>{
+      numberSolved++
+      this.secondsPerSolution = (
+        new Date().getTime() - startTime.getTime()
+      ) / numberSolved / 1000
+
+      this.mathForm.patchValue({
+        a:this.generateRandomNumber(),
+        b:this.generateRandomNumber(),
+        answer: ""
+      })      
     })
 
   }
